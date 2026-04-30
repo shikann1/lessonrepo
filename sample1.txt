@@ -1,4 +1,4 @@
-11 Oct	06:35P TOTTORI	ANA298		
+11 Oct	06:35P TOTTORI	ANA298
 		07:55P HANEDA
 		(ACCOMODATION) XXXX
 ---------------------------------------------------------------------------------------------
@@ -27,3 +27,6 @@
 		xx:xx TOKYO
 		 Kyoto Tour
 		(ACCOMODATION) XXXX
+30 apr 10:40 higashinakano
+    11:00 lesson2
+	
