@@ -1,0 +1,161 @@
+import cv2
+from ultralytics import YOLO
+
+# 摄像头
+video_path = 0
+capture = cv2.VideoCapture(video_path)
+
+if not capture.isOpened():
+    print("摄像头打不开，请把 video_path = 0 改成 1 再试")
+    exit()
+
+# 关键点名称
+KEYPOINTS_NAMES = [
+    "nose", "eye(L)", "eye(R)", "ear(L)", "ear(R)",
+    "shoulder(L)", "shoulder(R)",
+    "elbow(L)", "elbow(R)",
+    "wrist(L)", "wrist(R)",
+    "hip(L)", "hip(R)",
+    "knee(L)", "knee(R)",
+    "ankle(L)", "ankle(R)",
+]
+
+# YOLO姿势模型
+model = YOLO("yolov8n-pose.pt")
+
+
+def process_frame(frame):
+    results = model(frame, conf=0.75)
+    annotated_frame = results[0].plot()
+
+    if results[0].keypoints is None:
+        return annotated_frame
+
+    keypoints = results[0].keypoints.xy
+    confs = results[0].keypoints.conf
+
+    if keypoints is None or confs is None:
+        return annotated_frame
+
+    # 第一个人
+    keypoints = keypoints[0]
+    confs = confs[0]
+
+    # 画关键点名称
+    for idx, (point, score) in enumerate(zip(keypoints, confs)):
+        x, y = int(point[0]), int(point[1])
+
+        if score < 0.5:
+            continue
+
+        print(
+            f"Keypoint Name={KEYPOINTS_NAMES[idx]}, "
+            f"X={x}, Y={y}, Score={score:.4f}"
+        )
+
+        cv2.rectangle(
+            annotated_frame,
+            (x, y),
+            (x + 3, y + 3),
+            (255, 0, 255),
+            cv2.FILLED,
+            cv2.LINE_AA,
+        )
+
+        cv2.putText(
+            annotated_frame,
+            KEYPOINTS_NAMES[idx],
+            (x + 5, y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 0, 255),
+            1,
+            cv2.LINE_AA,
+        )
+
+    # =========================
+    # 左手を挙げる検出
+    # =========================
+    left_shoulder = keypoints[5]
+    left_elbow = keypoints[7]
+    left_wrist = keypoints[9]
+
+    left_raised = False
+
+    if left_wrist[1] < left_elbow[1] and left_elbow[1] < left_shoulder[1]:
+        left_raised = True
+
+    # =========================
+    # 右手を挙げる検出
+    # =========================
+    right_shoulder = keypoints[6]
+    right_elbow = keypoints[8]
+    right_wrist = keypoints[10]
+
+    right_raised = False
+
+    if right_wrist[1] < right_elbow[1] and right_elbow[1] < right_shoulder[1]:
+        right_raised = True
+
+    # =========================
+    # 結果を表示
+    # =========================
+    if left_raised:
+        cv2.putText(
+            annotated_frame,
+            "Left Hand Raised",
+            (50, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.2,
+            (0, 255, 0),
+            3,
+            cv2.LINE_AA,
+        )
+
+    if right_raised:
+        cv2.putText(
+            annotated_frame,
+            "Right Hand Raised",
+            (50, 100),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.2,
+            (255, 0, 0),
+            3,
+            cv2.LINE_AA,
+        )
+
+    if left_raised and right_raised:
+        cv2.putText(
+            annotated_frame,
+            "Both Hands Raised",
+            (50, 150),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.2,
+            (0, 255, 255),
+            3,
+            cv2.LINE_AA,
+        )
+
+    print("------------------------------------------------------")
+    return annotated_frame
+
+
+cv2.namedWindow("YOLOv8 Human Pose Estimation", cv2.WINDOW_NORMAL)
+cv2.resizeWindow("YOLOv8 Human Pose Estimation", 980, 540)
+
+while capture.isOpened():
+    success, frame = capture.read()
+
+    if not success:
+        print("摄像头读取失败")
+        break
+
+    annotated_frame = process_frame(frame)
+
+    cv2.imshow("YOLOv8 Human Pose Estimation", annotated_frame)
+
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+capture.release()
+cv2.destroyAllWindows()
